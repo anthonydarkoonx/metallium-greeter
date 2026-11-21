@@ -1,0 +1,18 @@
+[package]
+name = "metallium-greeter-boot"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "The greeter's side of the Metallium-OS greeter contract (metallium-os docs/GREETER-INTERFACE.md): metallium_greeter_run"
+
+[dependencies]
+greeter-core = { path = "../greeter-core" }
+metallium-driver-rt = { git = "https://github.com/anthonydarkoonx/metallium-os", rev = "7fc6105" }
+metallium-gfx = { git = "https://github.com/anthonydarkoonx/metallium-os", rev = "7fc6105" }
+
+[features]
+# Test only: print the recovery key of a new account on the console, so a harness that cannot read the screen can type it back (never in a real image: it would write a secret to a log)
+log-key = []
+
+[lints]
+workspace = true

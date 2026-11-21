@@ -1,0 +1,20 @@
+# The greeter for Metallium-OS: the screen shown before a session starts (unlock the data volume, first-boot setup, log in, recover a passphrase). See README.md.
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+
+[profile.release]
+panic = "abort"
+opt-level = "s"
+
+# The same hardening lints as metallium-os.
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[workspace.lints.clippy]
+undocumented_unsafe_blocks = "deny"

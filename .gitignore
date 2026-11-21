@@ -1,0 +1,4 @@
+/target
+/target-metallium-os
+**/out/
+Cargo.lock.metallium-os-bak

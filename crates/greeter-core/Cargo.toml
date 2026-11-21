@@ -1,0 +1,9 @@
+[package]
+name = "greeter-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "The greeter's screens as a state machine: unlock the volume, first-boot setup, log in, recover a passphrase. No system calls, no drawing: host-tested"
+
+[lints]
+workspace = true
