@@ -192,11 +192,8 @@ fn first_boot_makes_the_administrator_and_shows_the_key_once() {
     let v = g.view();
     assert_eq!(v.title, "Write down the recovery key");
     assert_eq!(v.key.as_deref(), Some(recovery::encode(&[1; 16]).as_str()));
-    // the key must be read, not just clicked past
-    line(&mut g, &mut m, "zzzz");
-    assert_eq!(msg(&g), "That is not the last group of the key");
-    let last = recovery::encode(&[1; 16]).rsplit('-').next().unwrap().to_lowercase();
-    line(&mut g, &mut m, &last);
+    // Enter goes on: nothing is asked about the key
+    g.key(Key::Enter, &mut m);
     let v = g.view();
     assert_eq!((v.title.as_str(), v.fields[0].text.as_str(), v.fields[1].focused), ("Log in", "root", true), "the login screen has the name filled in and waits for the passphrase");
     assert_eq!(v.key, None, "the key is gone from the screen");

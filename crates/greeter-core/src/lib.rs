@@ -204,7 +204,7 @@ impl Greeter {
         self.fields = match s {
             Screen::Unlock => vec![Field::new("Passphrase", true, MAX_PASSPHRASE)],
             Screen::Setup => vec![Field::new("User name", false, MAX_NAME), Field::new("Passphrase", true, MAX_PASSPHRASE), Field::new("Again", true, MAX_PASSPHRASE)],
-            Screen::ShowKey => vec![Field::new("Last group", false, 4)],
+            Screen::ShowKey => Vec::new(),
             Screen::Login => vec![Field::new("User name", false, MAX_NAME), Field::new("Passphrase", true, MAX_PASSPHRASE)],
             Screen::Recovery => vec![
                 Field::new("User name", false, MAX_NAME),
@@ -286,19 +286,12 @@ impl Greeter {
             }
             Screen::Setup => self.enter_setup(b),
             Screen::ShowKey => {
-                let typed: Vec<u8> = self.fields[0].value.iter().map(|&c| normal(c)).collect();
-                let last: Vec<u8> = self.shown_key.rsplit('-').next().unwrap_or("").bytes().map(normal).collect();
-                if typed == last {
-                    self.shown_key.clear();
-                    let name = core::mem::take(&mut self.last_name);
-                    self.show(Screen::Login);
-                    self.fields[0].value = name.into_bytes();
-                    self.focus = 1;
-                    self.note("Account created. Log in.", false);
-                } else {
-                    self.fields[0].wipe();
-                    self.note("That is not the last group of the key", true);
-                }
+                self.shown_key.clear();
+                let name = core::mem::take(&mut self.last_name);
+                self.show(Screen::Login);
+                self.fields[0].value = name.into_bytes();
+                self.focus = 1;
+                self.note("Account created. Log in.", false);
             }
             Screen::Login => {
                 if self.focus == 0 {

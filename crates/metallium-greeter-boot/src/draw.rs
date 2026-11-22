@@ -1,100 +1,83 @@
-//! Drawing a [`View`] into the scanout buffer with the OS's 5x9 bitmap font: plain centred lines on a dark background.
+//! Drawing a [`View`] into the scanout buffer the way the OS's own console looks: the same terminal box (80 x 28 cells of IBM Plex Mono, 14 px, light grey on black) centred on the
+//! same backdrop, lines from the top left, no boxes or centring. The numbers are `user/src/console.rs`'s in Metallium-OS.
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
 use greeter_core::View;
-use metallium_gfx::font;
 
-const BG: u32 = 0x101820;
-const TEXT: u32 = 0xE6EDF3;
-const DIM: u32 = 0x8FA3B5;
-const ACCENT: u32 = 0x7EE787;
-const ERROR: u32 = 0xFF7B72;
-const FIELD: u32 = 0x1B2733;
+const BACKDROP: u32 = 0x101820;
+const BG: u32 = 0x000000;
+const FG: u32 = 0xC0C0C0;
+const ACCENT: u32 = 0xFFFFFF;
+const DIM: u32 = 0x808080;
+const ERR: u32 = 0xFF5555;
 
-struct Line {
-    text: String,
-    color: u32,
-    scale: usize,
-    /// A rectangle behind it (an input field).
-    boxed: bool,
-}
+const CELL_W: usize = 8;
+const CELL_H: usize = 19;
+const MARGIN: usize = 4;
+const COLS: usize = 80;
+const ROWS: usize = 28;
+const BOX_W: usize = 2 * MARGIN + COLS * CELL_W;
+const BOX_H: usize = 2 * MARGIN + ROWS * CELL_H;
 
-fn line(text: impl Into<String>, color: u32, scale: usize) -> Line {
-    Line { text: text.into(), color, scale, boxed: false }
-}
-
-fn char_at(fb: &mut [u32], w: usize, h: usize, x: usize, y: usize, scale: usize, color: u32, ch: u8) {
-    let Some(rows) = font::glyph(ch).or_else(|| font::glyph(b'?')) else { return };
-    for (r, bits) in rows.iter().enumerate() {
-        for col in 0..font::W as usize {
-            if bits & (1 << (font::W as usize - 1 - col)) != 0 {
-                for dy in 0..scale {
-                    for dx in 0..scale {
-                        let (px, py) = (x + col * scale + dx, y + r * scale + dy);
-                        if px < w && py < h {
-                            fb[py * w + px] = color;
-                        }
-                    }
-                }
+/// One character of the monospace face with the top left of its cell at (x, y), blended with what is there by the glyph's coverage.
+fn char_at(fb: &mut [u32], w: usize, x: usize, y: usize, color: u32, ch: u8) {
+    let face = &metallium_gfx::typeface::MONO;
+    let Some(g) = face.glyph(ch as char) else { return };
+    for row in 0..g.h as usize {
+        for col in 0..g.w as usize {
+            let i = row * g.w as usize + col;
+            let byte = face.data[g.off as usize + i / 2];
+            let cov = (if i % 2 == 0 { byte & 15 } else { byte >> 4 }) as u32 * 17;
+            if cov == 0 {
+                continue;
             }
-        }
-    }
-}
-
-fn fill(fb: &mut [u32], w: usize, h: usize, x: usize, y: usize, rw: usize, rh: usize, color: u32) {
-    for py in y..(y + rh).min(h) {
-        for px in x..(x + rw).min(w) {
-            fb[py * w + px] = color;
+            let (px, py) = (x as i32 + g.bx as i32 + col as i32, y as i32 + g.by as i32 + row as i32);
+            if px < 0 || py < 0 || px as usize >= w {
+                continue;
+            }
+            if let Some(p) = fb.get_mut(py as usize * w + px as usize) {
+                *p = metallium_gfx::blend(*p, color, cov);
+            }
         }
     }
 }
 
 /// Draw the whole screen (`fb` is `w * h` words).
 pub fn draw(fb: &mut [u32], w: usize, h: usize, v: &View) {
-    fb.fill(BG);
-    let unit = (w / 400).clamp(2, 4); // text scale follows the screen
-    let mut lines: Vec<Line> = Vec::new();
-    lines.push(line("Metallium-OS", DIM, unit));
-    lines.push(line("", TEXT, 1));
-    lines.push(line(v.title.as_str(), TEXT, unit + 1));
-    lines.push(line("", TEXT, 1));
+    fb.fill(BACKDROP);
+    let (ox, oy) = (w.saturating_sub(BOX_W) / 2, h.saturating_sub(BOX_H) / 2);
+    for y in oy..(oy + BOX_H).min(h) {
+        for x in ox..(ox + BOX_W).min(w) {
+            fb[y * w + x] = BG;
+        }
+    }
+    let mut lines: Vec<(String, u32)> = Vec::new();
+    lines.push((String::from("Metallium-OS"), ACCENT));
+    lines.push((v.title.clone(), FG));
+    lines.push((String::new(), FG));
     for t in &v.intro {
-        lines.push(line(t.as_str(), DIM, unit));
+        lines.push((t.clone(), FG));
     }
     if let Some(key) = &v.key {
-        lines.push(line("", TEXT, 1));
-        lines.push(line(key.as_str(), ACCENT, unit + 1));
+        lines.push((String::new(), FG));
+        lines.push((key.clone(), ACCENT));
     }
-    lines.push(line("", TEXT, 1));
+    lines.push((String::new(), FG));
     for f in &v.fields {
-        let shown = format!("{}: {}{}", f.label, f.text, if f.focused { "_" } else { "" });
-        let mut l = line(shown, if f.focused { TEXT } else { DIM }, unit);
-        l.boxed = true;
-        lines.push(l);
+        lines.push((format!("{}: {}{}", f.label, f.text, if f.focused { "_" } else { "" }), if f.focused { ACCENT } else { FG }));
     }
     if let Some(m) = &v.message {
-        lines.push(line("", TEXT, 1));
-        lines.push(line(m.text.as_str(), if m.error { ERROR } else { ACCENT }, unit));
+        lines.push((String::new(), FG));
+        lines.push((m.text.clone(), if m.error { ERR } else { ACCENT }));
     }
-    // the stack of lines, centred; the hint at the bottom
-    let gap = unit * 3;
-    let total: usize = lines.iter().map(|l| l.scale * font::H as usize + gap).sum();
-    let mut y = h.saturating_sub(total) / 2;
-    for l in &lines {
-        let lw = l.text.len() * font::ADVANCE as usize * l.scale;
-        let x = w.saturating_sub(lw) / 2;
-        if l.boxed {
-            let pad = unit * 2;
-            fill(fb, w, h, w.saturating_sub(lw + 2 * pad) / 2, y.saturating_sub(pad), lw + 2 * pad, l.scale * font::H as usize + 2 * pad, FIELD);
+    for (row, (text, color)) in lines.iter().enumerate().filter(|(r, _)| *r < ROWS - 1) {
+        for (i, c) in text.bytes().take(COLS).enumerate() {
+            char_at(fb, w, ox + MARGIN + i * CELL_W, oy + MARGIN + row * CELL_H, *color, c);
         }
-        for (i, c) in l.text.bytes().enumerate() {
-            char_at(fb, w, h, x + i * font::ADVANCE as usize * l.scale, y, l.scale, l.color, c);
-        }
-        y += l.scale * font::H as usize + gap;
     }
-    let hw = v.hint.len() * font::ADVANCE as usize * unit;
-    for (i, c) in v.hint.bytes().enumerate() {
-        char_at(fb, w, h, w.saturating_sub(hw) / 2 + i * font::ADVANCE as usize * unit, h.saturating_sub(font::H as usize * unit * 3), unit, DIM, c);
+    // the hint on the last row
+    for (i, c) in v.hint.bytes().take(COLS).enumerate() {
+        char_at(fb, w, ox + MARGIN + i * CELL_W, oy + MARGIN + (ROWS - 1) * CELL_H, DIM, c);
     }
 }

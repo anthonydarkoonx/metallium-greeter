@@ -11,7 +11,7 @@ first account on a new machine, logs users in, and replaces a forgotten passphra
 ## The screens
 * **Unlock**: the data volume is encrypted and locked (a machine whose own secret does not open it): type its passphrase.
 * **Welcome** (first boot, no accounts): user name, passphrase (at least 8 characters), again. Makes the **administrator** and shows the **recovery key** once: 26 characters in groups of
-  four, to be written on paper. To go on you type its last group back, so it is read, not clicked past. Nothing keeps the key: it is the only way back into the account's files if the
+  four, to be written on paper. Enter goes on. Nothing keeps the key: it is the only way back into the account's files if the
   passphrase is forgotten.
 * **Log in**: user name, passphrase. A wrong name and a wrong passphrase give the same answer. A user who already has a session on another terminal is told so.
 * **Recovery** (Ctrl+R on the login screen): user name, recovery key (case, dashes and spaces do not matter; `O` reads as `0`, `I` and `L` as `1`), a new passphrase twice.
