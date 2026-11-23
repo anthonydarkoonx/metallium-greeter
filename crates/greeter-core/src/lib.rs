@@ -8,6 +8,7 @@
 extern crate alloc;
 
 pub mod recovery;
+pub mod touch;
 
 use alloc::string::String;
 use alloc::vec;
@@ -125,6 +126,13 @@ pub struct ViewField {
     pub focused: bool,
 }
 
+/// A button the screen offers besides its fields: pressing it is the same as pressing `key` (a touch screen has no Ctrl+R or Esc).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ViewAction {
+    pub label: String,
+    pub key: Key,
+}
+
 /// What to show.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct View {
@@ -135,6 +143,10 @@ pub struct View {
     pub key: Option<String>,
     pub message: Option<Message>,
     pub hint: String,
+    /// Buttons for what the keyboard does with a shortcut (forgot my passphrase, back) or has no key for (continue after the recovery key).
+    pub actions: Vec<ViewAction>,
+    /// What Enter does on this field: "Next", "Log in"... (the label of a touch keyboard's Enter key).
+    pub submit: String,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -174,6 +186,13 @@ impl Greeter {
         let mut g = Greeter { screen: Screen::Done, fields: Vec::new(), focus: 0, message: None, shown_key: String::new(), last_name: String::new() };
         g.decide(b);
         g
+    }
+
+    /// Focus field `i` (a tap on it); ignored if there is no such field.
+    pub fn focus(&mut self, i: usize) {
+        if i < self.fields.len() {
+            self.focus = i;
+        }
     }
 
     pub fn is_done(&self) -> bool {
@@ -412,7 +431,24 @@ impl Greeter {
             Screen::Damaged => ("The data volume cannot be read", &["It is encrypted and its store does not read.", "Nothing is formatted over it."], ""),
             Screen::Done => ("", &[], ""),
         };
+        let action = |label: &str, key| ViewAction { label: String::from(label), key };
+        let actions = match self.screen {
+            Screen::ShowKey => vec![action("I have written it down", Key::Enter)],
+            Screen::Login => vec![action("Forgot my passphrase", Key::Recover)],
+            Screen::Recovery => vec![action("Back", Key::Escape)],
+            _ => Vec::new(),
+        };
+        let last = self.focus + 1 >= self.fields.len();
+        let submit = match self.screen {
+            Screen::Unlock => "Unlock",
+            Screen::Setup if last => "Create",
+            Screen::Login if last => "Log in",
+            Screen::Recovery if last => "Recover",
+            _ => "Next",
+        };
         View {
+            actions,
+            submit: String::from(submit),
             title: String::from(title),
             intro: intro.iter().map(|s| String::from(*s)).collect(),
             fields: self

@@ -17,6 +17,11 @@ first account on a new machine, logs users in, and replaces a forgotten passphra
 * **Recovery** (Ctrl+R on the login screen): user name, recovery key (case, dashes and spaces do not matter; `O` reads as `0`, `I` and `L` as `1`), a new passphrase twice.
 * **Damaged volume**: an encrypted volume whose store does not read is never formatted over; the screen says so and stops.
 
+## Touch screens
+A machine whose input driver reports a pointer (a phone's touch screen) gets large fields, buttons and an on-screen keyboard (letters, symbols, more symbols: every printable ASCII
+character) instead of the console look; a hardware keyboard keeps working. The layout and tap handling are `greeter-core::touch` (host-tested); `metallium-greeter-boot` only draws
+the rectangles and feeds pointer events in. Secrets are still never drawn.
+
 ## Building into Metallium-OS
 ```sh
 cd ../metallium-os
